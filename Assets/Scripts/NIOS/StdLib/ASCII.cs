@@ -145,4 +145,5 @@ public static class ASCII
 	public const char Escape = ESC;
 	public const char CarriageReturn = CR;
 	public const char Space = (char)0x20;
+	public const char Tab = TAB;
 }

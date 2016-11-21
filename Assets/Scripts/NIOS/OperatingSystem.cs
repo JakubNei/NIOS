@@ -19,21 +19,17 @@ public partial class OperatingSystem : IBootSectorProgram
 	public static readonly byte[] bootSectorBytes = Utils.ProgramContents(645, 100);
 	public static readonly string bootSectorBase64 = Convert.ToBase64String(bootSectorBytes);
 
-	public ITerminal terminal;
-
 	public string MachineName { get; private set; }
 
-	Process currentUserSession;
-
-	List<Program> programs = new List<Program>();
+	List<ProgramBase> programs = new List<ProgramBase>();
 
 	DirEntry rootDirectory;
 
-	Process systemSession;
+	Session systemSession;
 
 	public Computer Machine { get; private set; }
 
-	void AddProgram(Program program)
+	void AddProgram(ProgramBase program)
 	{
 		programs.Add(program);
 	}
@@ -57,54 +53,95 @@ public partial class OperatingSystem : IBootSectorProgram
 		try
 		{
 			SetupSystem();
-			UserInteraction();
 		}
 		catch (Exception e)
 		{
-			terminal.GetWriter().Write(e);
 			UnityEngine.Debug.LogException(e);
+			systemSession.Console.WriteLine();
+			systemSession.Console.WriteLine(e);
 		}
 	}
 
 
+	public class Process
+	{
+		public OperatingSystem operatingSystem;
+		public Session.Configuration Session { get; set; }
+		public void Start(string filePath, params string[] args)
+		{
+			var data = operatingSystem.systemSession.File.ReadAllText(filePath);
+
+			const string t = "make_c_sharp_instance_of:";
+			if (data.StartsWith(t))
+			{
+				var typeName = data.Substring(t.Length);
+				var type = Assembly.GetExecutingAssembly().GetType(typeName);
+				if (type == null) throw new Error("unable to find type " + data);
+				var instance = Activator.CreateInstance(type);
+				if (instance == null) throw new Error("failed to create instance of " + type);
+				var program = (ProgramBase)instance;
+				program.Initialize(Session);
+				program.Main(args);
+			}
+			else
+			{
+				throw new Error(filePath + ", has unexpected data, can not start");
+			}
+		}
+	}
+
+	public Process NewProcess()
+	{
+		return new Process() { operatingSystem = this };
+	}
 
 
 	void SetupSystem()
 	{
-		terminal = Machine.GetFirstDeviceOfType<ITerminal>();
-
 		rootDirectory = DirEntry.MakeRoot();
 
 		var dev = rootDirectory.CreateSubdirectory("dev");
 		var devFs = new DevDirFileSystem(dev);
 		dev.fileSystem = devFs;
-
-		var cfg = new Process.Configuration();
-		cfg.operatingSystem = this;
-		cfg.userName = "system";
-		cfg.stdIn = terminal.GetReader();
-		cfg.stdErr = cfg.stdOut = terminal.GetWriter();
-		cfg.currentDirectory = "/";
-		systemSession = new Process();
-		systemSession.Initialize(cfg);
+		dev.isMountPoint = true;
+		dev.Refresh();
 
 		foreach (var d in Machine.Devices) devFs.AddDevice(d);
 
 		Mount("/dev/sda", "/", "csv");
 
-		/*
-		var systemShell = new Shell();
-		var systemShellInput = new TextReader();
-		systemShell.InheritFrom(systemSession);
-		systemShell.Initialize(this, systemSession.Config);
-		systemShell.Console.SetIn(systemShellInput);
-		systemShell.Console.SetOut(new null);
-		systemShell.Console.SetError(new null);
-		systemShell.Main(new string[0]);
-		systemShellInput.WriteLine("mnt /dev/sda /");
-		*/
+		var terminal = GetFileEntry("/dev/tty1");
 
-		rootDirectory.Refresh();
+		var cfg = new Session.Configuration();
+		cfg.operatingSystem = this;
+		cfg.userName = "system";
+
+		if (terminal.Exists)
+		{
+			cfg.stdIn = terminal.OpenText();
+			cfg.stdErr = cfg.stdOut = new StreamWriter(terminal.OpenWrite()) { AutoFlush = true };
+		}
+		else
+		{
+			cfg.stdIn = new StreamReader(new MemoryStream(new byte[] { }));
+			var stdOut = GetFileEntry("/tmp/std-out-" + DateTime.UtcNow.Ticks + ".txt");
+			cfg.stdOut = new StreamWriter(stdOut.OpenWrite()) { AutoFlush = true };
+			var stdErr = GetFileEntry("/tmp/std-err-" + DateTime.UtcNow.Ticks + ".txt");
+			cfg.stdErr = new StreamWriter(stdErr.OpenWrite()) { AutoFlush = true };
+		}
+
+		cfg.currentDirectory = "/";
+		systemSession = new Session();
+		systemSession.Initialize(cfg);
+
+		if(!systemSession.File.Exists("/bin/sh"))
+		{
+			systemSession.Console.WriteLine("/bin/sh not found, re/installing system");
+			new InitializeFileSystem().Install(systemSession, "/");
+		}
+
+		if (terminal.Exists)
+			UserInteraction();
 	}
 
 	public void Mount(string device, string target, string fileSystem = "csv")
@@ -113,32 +150,28 @@ public partial class OperatingSystem : IBootSectorProgram
 		var toDir = GetDirEntry(target);
 
 		if (fileSystem == "csv") toDir.fileSystem = new CsvFileSystem(toDir, deviceFile);
+		toDir.isMountPoint = true;
 		toDir.Refresh();
 	}
 
 	void UserInteraction()
 	{
-		terminal.Clear();
-
-		var w = terminal.GetWriter();
-
-		w.WriteLine("niOS [version 0.0.1.0a]");
-		w.WriteLine("(c) 2016 Neitri Industries. All rights reserved.");
-		w.WriteLine(DateTime.UtcNow);
+		systemSession.Console.WriteLine("niOS [version 0.0.1.0a]");
+		systemSession.Console.WriteLine("(c) 2016 Neitri Industries. All rights reserved.");
+		systemSession.Console.WriteLine(DateTime.UtcNow);
 		//.WriteLine("This software is protected by following patents US14761 NI4674765 EU41546 US145-7756 US765-577")
 		//.WriteLine("Any unauthorized reproduction of this software is strictly prohibited.")
-		w.WriteLine();
+		systemSession.Console.WriteLine();
 
 		while (true)
 		{
 			SystemSanityCheck();
 
-			if (currentUserSession == null || string.IsNullOrEmpty(currentUserSession.Environment.UserName))
-				Authenticate();
+			var currentUserSession = AuthenticateNewSession();
 
-			var shell = new Shell();
-			shell.Initialize(currentUserSession.Config.Clone());
-			shell.Main(new string[] { });
+			var shell = NewProcess();
+			shell.Session = currentUserSession.Config.Clone();
+			shell.Start("/bin/sh");
 		}
 	}
 
@@ -149,24 +182,22 @@ public partial class OperatingSystem : IBootSectorProgram
 	}
 
 	// https://www.digitalocean.com/community/tutorials/how-to-use-passwd-and-adduser-to-manage-passwords-on-a-linux-vps
-	void Authenticate()
+	Session AuthenticateNewSession()
 	{
 		//FindOrCreateFile("/etc/passwd").WriteAllText("test");
 		//var b = FindOrCreateFile("/etc/passwd").ReadAllText();
 
 		var csv = CSV.FromLines(GetFileEntry("/etc/passwd").ReadAllLinesEmptyIfDoesntExist());
 
-		var w = terminal.GetWriter();
-
 		string userName;
 		enterUserName:
-		w.Write("log in as user: ");
-		
+		systemSession.Console.Write("log in as user: ");
+
 		userName = Utils.SanitizeInput(systemSession.Console.ReadLine());
-		w.WriteLine();
+		systemSession.Console.WriteLine();
 		if (userName.Length < 3 || !Regex.IsMatch(userName, @"^[\w\d]+$"))
 		{
-			w.WriteLine("user name must be minimum of 3 characters long and must contain only characters and numbers");
+			systemSession.Console.WriteLine("user name must be minimum of 3 characters long and must contain only characters and numbers");
 			goto enterUserName;
 		}
 
@@ -175,28 +206,28 @@ public partial class OperatingSystem : IBootSectorProgram
 		if (userExists)
 		{
 			enterPassword:
-			w.Write("enter password: ");
+			systemSession.Console.Write("enter password: ");
 			var pass = EnterPassword();
-			w.WriteLine();
+			systemSession.Console.WriteLine();
 			if (csv.Any(l => l[1] == pass) == false)
 			{
-				w.WriteLine("wrong password, try again");
+				systemSession.Console.WriteLine("wrong password, try again");
 				goto enterPassword;
 			}
 		}
 		else
 		{
-			w.WriteLine("user does not exist, creating new user");
+			systemSession.Console.WriteLine("user does not exist, creating new user");
 			enterNewPassword:
-			w.Write("enter new password: ");
+			systemSession.Console.Write("enter new password: ");
 			var pass = EnterPassword();
-			w.WriteLine();
-			w.Write("enter new password again: ");
+			systemSession.Console.WriteLine();
+			systemSession.Console.Write("enter new password again: ");
 			var passAgain = EnterPassword();
-			w.WriteLine();
+			systemSession.Console.WriteLine();
 			if (pass != passAgain)
 			{
-				w.WriteLine("passwords do not match, try again");
+				systemSession.Console.WriteLine("passwords do not match, try again");
 				goto enterNewPassword;
 			}
 
@@ -206,21 +237,22 @@ public partial class OperatingSystem : IBootSectorProgram
 
 		var cfg = systemSession.Config.Clone();
 		cfg.userName = userName;
-		currentUserSession = new Process();
+		var currentUserSession = new Session();
 		currentUserSession.Initialize(cfg);
 
 		var p = currentUserSession.Environment.GetFolderPath(SpecialFolder.Personal);
 		if (!currentUserSession.Directory.Exists(p)) currentUserSession.Directory.CreateDirectory(p);
 		currentUserSession.Environment.CurrentDirectory = p;
 
+		systemSession.Console.WriteLine("logged in as user " + currentUserSession.Environment.UserName);
+		systemSession.Console.WriteLine();
 
-		w.WriteLine("logged in as user " + currentUserSession.Environment.UserName);
-		w.WriteLine();
+		return currentUserSession;
 	}
 
 	string EnterPassword()
 	{
-        var password = systemSession.Console.ReadPassword('*');
+		var password = systemSession.Console.ReadPassword('*');
 		return Utils.GetStringSha256Hash(password);
 	}
 }

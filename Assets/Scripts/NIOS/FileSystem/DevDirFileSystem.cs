@@ -4,6 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
+// todo:
+// http://unix.stackexchange.com/a/281377/153172
+// /dev/disk/by-id
 public class DevDirFileSystem : IFileSystem
 {
 	DirEntry mountPoint;
@@ -16,21 +19,70 @@ public class DevDirFileSystem : IFileSystem
 
 	public void AddDevice(IDevice device)
 	{
-		var name = "";
-		if (device.Type == DeviceType.Block)
-			name = "sd" + (char)((int)'a' + devices.Count(d => d.Value.Type == DeviceType.Block));
-		if (device.Type == DeviceType.Character)
-			name = "tt" + (char)((int)'1' + devices.Count(d => d.Value.Type == DeviceType.Character));
+		// find unique name, keep adding index until name is unique
+		var nameIndex = 0;
+		var name = string.Empty;
+		do
+		{
+			name = GetName(device, nameIndex);
+			nameIndex++;
+		} while (devices.ContainsKey(name));
 
-		if (devices.ContainsKey(name)) throw new InvalidOperationException("device " + name + " already exists");
 		devices.Add(name, device);
 	}
 
+	string GetName(IDevice device, int index)
+	{
+		var name = device.DeviceType.NamePrefix;
+		if (device.DeviceType.NumberingType == DeviceNumberingType.Alphabet)
+			name += ToBase26Alphabet(index);
+		else
+			name += (index + 1).ToString();
+		return name;
+	}
 
-	public void GatherDirectoryInfo(DirEntry dir)
+	/// <summary>
+	/// decimal to something like 27 alphabet base
+	/// non-first or sole letter's index starts at 0
+	/// first letter's index starts at 1
+	/// abcdefghijklmnopqrstuvwxyz
+	/// 01234567890123456789012345
+	/// 00000000001111111111222222
+	/// 0 returns a
+	/// 1 returns b
+	/// 25 returnz z
+	/// 26 return aa
+	/// 27 returns ab
+	/// 50 returns az
+	/// 51 returns ba
+	/// </summary>
+	/// <param name="index"></param>
+	/// <returns></returns>
+	static string ToBase26Alphabet(int currentNumber)
+	{
+		var result = string.Empty;
+		var baseCurrent = 26;
+
+		while (true)
+		{
+			var nextNumber = (int)(currentNumber / baseCurrent);
+			var a = nextNumber * baseCurrent;
+			var remainder = currentNumber - a;
+
+			currentNumber = nextNumber;
+
+			if (currentNumber == 0 && result.Length > 0) remainder--; // for beauty, first character starts at 'a'==0 even thought it is should start at 'b'==1
+			result = ((char)('a' + remainder)).ToString() + result;
+
+			if (currentNumber == 0) return result;
+		}
+	}
+
+
+	public void UpdateDirectoryInfo(DirEntry.UpdateHandle dir)
 	{
 		foreach (var d in devices.Keys)
-			dir.FileSystemAddsFile(d);
+			dir.AddFile(d);
 	}
 
 

@@ -106,7 +106,7 @@ namespace StdLib.Ecma48
 			}
 			else if (ecma48Sequence)
 			{
-				if(ecma48SequenceParameter.Length > 200)
+				if (ecma48SequenceParameter.Length > 200)
 				{
 					// failsafe
 					ecma48Sequence = false;
@@ -245,6 +245,17 @@ namespace StdLib.Ecma48
 				cursorColumn = 0;
 				DataVersion++;
 			}
+			else if (character == ASCII.Tab)
+			{
+				cursorColumn += 4;
+				if (cursorColumn >= ColumnsCount) // if we tab to new line, we want to start at 0
+				{
+					cursorColumn = 0;
+					cursorRow++;
+				}
+				PositionSanityCheck();
+				DataVersion++;
+			}
 			else if (character == ASCII.BackSpace)
 			{
 				cursorColumn--;
@@ -277,9 +288,9 @@ namespace StdLib.Ecma48
 				cursorRow -= rowsBack;
 				cursorColumn = rowsBack * (int)ColumnsCount - cursorColumn;
 			}
-			if (cursorColumn >= ColumnsCount)
+			while (cursorColumn >= ColumnsCount)
 			{
-				cursorColumn = 0;
+				cursorColumn -= (int)ColumnsCount;
 				cursorRow++;
 			}
 

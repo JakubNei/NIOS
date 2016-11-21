@@ -4,46 +4,58 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using StdLib;
 
 public class Computer
 {
 	List<IDevice> devices = new List<IDevice>();
 	List<WeakReference> threads = new List<WeakReference>();
 
-	public IEnumerable<IDevice> Devices
+	public string computerId;
+
+	public IEnumerable<IDevice> Devices { get { return devices; } }
+
+	public event Action<IDevice> OnDeviceConnected;
+	public event Action<IDevice> OnDeviceDisconnected;
+
+	public IDevice GetFirstDeviceByPrefix(string prefix)
 	{
-		get
-		{
-			return devices;
-		}
+		var dev = devices.FirstOrDefault(d => d.DeviceType.NamePrefix == prefix);
+		return dev;
 	}
 
-	public T GetFirstDeviceOfType<T>() where T : class, IDevice
+	void Write(Action<StreamWriter> streamWriterAction)
 	{
-		var dev = devices.FirstOrDefault(d => d.GetType() == typeof(T) || typeof(T).IsAssignableFrom(d.GetType()));
-		if (dev == null) return null;
-		return dev as T;
+		var d = GetFirstDeviceByPrefix("tty");
+		if (d == null) return;
+		var sr = new StreamWriter(d.OpenWrite());
+		streamWriterAction.Raise(sr);
+		sr.Dispose();
 	}
 
 	public void Write(string a)
 	{
-		var terminal = GetFirstDeviceOfType<ITerminal>();
-		if (terminal != null) terminal.GetWriter().Write(a);
+		Write(sr => sr.Write(a));
 	}
 	public void WriteLine(string a)
 	{
-		var terminal = GetFirstDeviceOfType<ITerminal>();
-		if (terminal != null) terminal.GetWriter().WriteLine(a);
+		Write(sr => sr.WriteLine(a));
 	}
 	public void Clear()
 	{
-		var terminal = GetFirstDeviceOfType<ITerminal>();
-		if (terminal != null) terminal.Clear();
+		Write(sr => new StdLib.Ecma48.Client(sr).EraseDisplay());
 	}
 
 	public void ConnectDevice(IDevice device)
 	{
 		devices.Add(device);
+		OnDeviceConnected.Raise(device);
+	}
+
+	public void DisconnectDevice(IDevice device)
+	{
+		devices.Remove(device);
+		OnDeviceDisconnected.Raise(device);
 	}
 
 	public Thread CreateThread(ThreadStart start)
@@ -51,10 +63,12 @@ public class Computer
 		var t = new Thread(start);
 		t.IsBackground = true;
 		t.Priority = ThreadPriority.Lowest;
+		t.Name = computerId + "_#" + threads.Count;
 		Utils.SetDefaultCultureInfo(t);
 		threads.Add(new WeakReference(t));
 		return t;
 	}
+
 
 	public void ShutDown()
 	{
@@ -78,7 +92,7 @@ public class Computer
 
 		CreateThread(() =>
 		{
-			if (preferredBootDevice == null) preferredBootDevice = devices.FirstOrDefault(d => d.Type == DeviceType.Block);
+			if (preferredBootDevice == null) preferredBootDevice = devices.FirstOrDefault(d => d.DeviceType.IOType == DeviceIOType.Block);
 			if (preferredBootDevice == null)
 				WriteLine("unable to boot up, no block devices attached");
 			/*

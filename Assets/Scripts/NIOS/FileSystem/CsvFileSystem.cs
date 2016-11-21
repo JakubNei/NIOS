@@ -51,9 +51,9 @@ public class CsvFileSystem : IFileSystem
 	}
 
 
-	public void GatherDirectoryInfo(DirEntry dir)
+	public void UpdateDirectoryInfo(DirEntry.UpdateHandle dir)
 	{
-		var path = mountPoint.GetRelativePathTo(dir);
+		var path = mountPoint.GetRelativePathTo(dir.DirEntry);
 
 		ulong id = 0;
 		GetEntry(path, ref id);
@@ -62,8 +62,8 @@ public class CsvFileSystem : IFileSystem
 		var files = filtered.Where(e => fileContents.ContainsKey(e.Key)).ToArray();
 		var dirs = filtered.Except(files).ToArray();
 
-		foreach (var d in dirs) dir.FileSystemAddsDir(d.Value.name);
-		foreach (var f in files) dir.FileSystemAddsFile(f.Value.name);
+		foreach (var d in dirs) dir.AddDirectory(d.Value.name);
+		foreach (var f in files) dir.AddFile(f.Value.name);
 	}
 
 

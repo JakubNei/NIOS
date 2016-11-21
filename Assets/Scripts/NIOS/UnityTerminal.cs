@@ -10,10 +10,10 @@ using UnityEngine;
 using UnityEngine.UI;
 using StdLib;
 
-public class UnityTerminal : IDevice, ITerminal
+public class UnityTerminal : IDevice
 {
 	Text textComponent;
-	public DeviceType Type { get { return DeviceType.Character; } }
+	public DeviceType DeviceType { get { return DeviceType.Terminal; } }
 	public Encoding Encoding { get { return Encoding.ASCII; } }
 
 	public string NewLine { get; set; }
@@ -50,22 +50,40 @@ public class UnityTerminal : IDevice, ITerminal
 		var maxNumberOfColumns = (uint)Mathf.FloorToInt(areaWidth / textWidth);
 
 		device = new StdLib.Ecma48.Device(maxNumberOfColumns, maxNumberOfLines);
-		client = new StdLib.Ecma48.Client(GetWriter());
+		var writer = new StreamWriter(OpenWrite());
+		writer.AutoFlush = true;
+		client = new StdLib.Ecma48.Client(writer);
 
-		GetWriter().WriteLine("columns: " + maxNumberOfColumns);
-		GetWriter().WriteLine("rows: " + maxNumberOfLines);
 	}
 
-	void Write(string text)
+	DateTime lastSignalReceived = DateTime.MinValue;
+	bool noMessageReceivedPrinted = false;
+	public void DisplayUpdate()
 	{
-		device.Parse(text);
+		const int timeoutSeconds = 60;
+		if (lastSignalReceived.IsOver(seconds: timeoutSeconds).InPastComparedTo(DateTime.UtcNow))
+		{
+			lastSignalReceived = DateTime.UtcNow;
+			client.WriteLine();
+			client.WriteLine();
+			client.WriteLine("no data received for over " + timeoutSeconds + " seconds");
+			client.WriteLine("debug info:");
+			client.WriteLine("	current time: " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
+			client.WriteLine("	columns: " + device.ColumnsCount);
+			client.WriteLine("	rows: " + device.RowsCount);
+			client.WriteLine();
+			client.WriteLine();
+		}
+
+
+		myWriteStream.UnityUpdate();
+		UpdateTextArea();
 	}
 
-	public void Clear()
+	public void DoType(string text)
 	{
-		client.EraseDisplay();
+		myReadStream.DoType(text);
 	}
-
 
 
 	void UpdateTextArea()
@@ -127,22 +145,10 @@ public class UnityTerminal : IDevice, ITerminal
 		textComponent.text = sb.ToString();
 	}
 
-	public void UnityUpdate()
-	{
-		myWriteStream.UnityUpdate();
-
-		UpdateTextArea();
-	}
-
-	public void DoType(string text)
-	{
-		myReadStream.DoType(text);
-	}
 
 	class MyWriteStream : Stream
 	{
-		public bool writeSlowly = false;
-		public string pendingWriteText = string.Empty;
+		string pendingWriteText = string.Empty;
 		UnityTerminal unityTerminal;
 
 		public override bool CanRead { get { return false; } }
@@ -153,7 +159,7 @@ public class UnityTerminal : IDevice, ITerminal
 
 		public override long Length { get { return long.MaxValue; } }
 
-		public override long Position { get { lock (pendingWriteText) return pendingWriteText.Length; } set { throw new NotImplementedException(); } }
+		public override long Position { get { return pendingWriteText.Length; } set { throw new NotImplementedException(); } }
 
 		public MyWriteStream(UnityTerminal u)
 		{
@@ -162,31 +168,10 @@ public class UnityTerminal : IDevice, ITerminal
 
 		public void UnityUpdate()
 		{
-			lock (pendingWriteText)
+			if (pendingWriteText.Length > 0)
 			{
-				if (pendingWriteText.Length > 0)
-				{
-					if (writeSlowly)
-					{
-						var nextNewLine = pendingWriteText.IndexOf('\n');
-						if (nextNewLine == -1)
-						{
-							unityTerminal.Write(pendingWriteText);
-							pendingWriteText = string.Empty;
-						}
-						else
-						{
-							var toWrite = pendingWriteText.Substring(0, nextNewLine + 1);
-							unityTerminal.Write(toWrite);
-							pendingWriteText = pendingWriteText.Substring(nextNewLine + 1);
-						}
-					}
-					else
-					{
-						unityTerminal.Write(pendingWriteText);
-						pendingWriteText = string.Empty;
-					}
-				}
+				unityTerminal.device.Parse(pendingWriteText);
+				pendingWriteText = string.Empty;
 			}
 		}
 
@@ -211,10 +196,10 @@ public class UnityTerminal : IDevice, ITerminal
 
 		public override void Write(byte[] buffer, int offset, int count)
 		{
+			unityTerminal.lastSignalReceived = DateTime.UtcNow;
 			var dst = new byte[count];
 			Array.Copy(buffer, offset, dst, 0, count);
-			lock (pendingWriteText)
-				pendingWriteText += unityTerminal.Encoding.GetString(dst);
+			pendingWriteText += unityTerminal.Encoding.GetString(dst);
 		}
 	}
 
@@ -231,7 +216,7 @@ public class UnityTerminal : IDevice, ITerminal
 
 		public override bool CanWrite { get { return false; } }
 
-		public override long Length { get { lock (pendingTextToRead) return pendingTextToRead.Length; } }
+		public override long Length { get { return pendingTextToRead.Length; } }
 
 		public override long Position { get { return 0; } set { throw new NotImplementedException(); } }
 
@@ -239,22 +224,19 @@ public class UnityTerminal : IDevice, ITerminal
 		{
 			this.unityTerminal = u;
 		}
-
 		public void DoType(string text)
 		{
 			text = text.Replace("\r", "\n"); // Unity says enter is only \r, but we want new line
 			if (text.Length > 0)
 			{
-				lock (pendingTextToRead)
-					pendingTextToRead += text;
+				pendingTextToRead += text;
 				canRead.Set();
 			}
 		}
 
 		public override void Flush()
 		{
-			lock (pendingTextToRead)
-				pendingTextToRead = string.Empty;
+			pendingTextToRead = string.Empty;
 		}
 
 		public override int Read(byte[] buffer, int offset, int count)
@@ -265,17 +247,15 @@ public class UnityTerminal : IDevice, ITerminal
 				canRead.WaitOne();
 			}
 			if (count > Length) count = (int)Length;
-			lock (pendingTextToRead)
-			{
-				var p = unityTerminal.Encoding.GetBytes(pendingTextToRead, 0, count, buffer, offset);
 
-				//DEBUG
-				//var c = pendingTextToRead.Substring(0, p);
-				//Debug.Log("reading " + c + " = " + string.Join(",", c.Select(x => ((int)x).ToString()).ToArray()));
+			var p = unityTerminal.Encoding.GetBytes(pendingTextToRead, 0, count, buffer, offset);
 
-				pendingTextToRead = pendingTextToRead.Substring(p);
-				return p;
-			}
+			//DEBUG
+			//var c = pendingTextToRead.Substring(0, p);
+			//Debug.Log("reading " + c + " = " + string.Join(",", c.Select(x => ((int)x).ToString()).ToArray()));
+
+			pendingTextToRead = pendingTextToRead.Substring(p);
+			return p;
 		}
 
 		public override long Seek(long offset, SeekOrigin origin)
@@ -304,26 +284,5 @@ public class UnityTerminal : IDevice, ITerminal
 		return myWriteStream;
 	}
 
-	class MyStreamWriter : StreamWriter
-	{
-		UnityTerminal unityTerminal;
-		public override IFormatProvider FormatProvider { get { return unityTerminal.CultureInfo; } }
-		public override string NewLine { get { return unityTerminal.NewLine; } set { unityTerminal.NewLine = value; } }
 
-		public MyStreamWriter(Stream stream, UnityTerminal unityTerminal) : base(stream, unityTerminal.Encoding)
-		{
-			this.unityTerminal = unityTerminal;
-			this.AutoFlush = true;
-		}
-	}
-
-	public TextWriter GetWriter()
-	{
-		return new MyStreamWriter(OpenWrite(), this);
-	}
-
-	public TextReader GetReader()
-	{
-		return new StreamReader(OpenRead(), Encoding);
-	}
 }

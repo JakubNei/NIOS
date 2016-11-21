@@ -1,19 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
-public class Shell : Program
+public class Shell : ProgramBase
 {
 	string currentCommand;
-	Process currentUserSession { get { return this; } }
+	Session currentUserSession { get { return this; } }
+	bool shouldContinue = true;
 
 	public override void Main(string[] arguments)
 	{
-		while (true)
+		while (shouldContinue)
 		{
 			BeginCommand();
 			var line = Utils.SanitizeInput(Console.ReadLine());
@@ -37,37 +39,9 @@ public class Shell : Program
 			}
 		}
 	}
-	string[] StandartParseArguments(string t)
-	{
-		var args = new List<string>();
-		var currentArg = string.Empty;
-		char isInsideQuota = (char)0;
-		foreach (var c in t)
-		{
-			if (c == '"' || c == '\'')
-			{
-				if (isInsideQuota != (char)0)
-					isInsideQuota = c;
-				else if (c == isInsideQuota)
-					isInsideQuota = (char)0;
-			}
-			else if ((c == ' ' || c == '\n') && isInsideQuota == (char)0)
-			{
-				args.Add(currentArg);
-				currentArg = string.Empty;
-			}
-			else
-			{
-				currentArg += c;
-			}
-		}
 
-		if (string.IsNullOrEmpty(currentArg) == false) args.Add(currentArg);
 
-		return args.ToArray();
-	}
-
-	public void ExecuteCommand(Process session, string cmd)
+	public void ExecuteCommand(Session session, string cmd)
 	{
 		var w = Console.Out;
 		w.WriteLine();
@@ -240,7 +214,7 @@ public class Shell : Program
 		}
 	}
 
-	bool ExecuteCommand_2(Process session, string cmd)
+	bool ExecuteCommand_2(Session session, string cmd)
 	{
 		var tokenizer = new CmdTokenizer(cmd);
 
@@ -326,162 +300,72 @@ public class Shell : Program
 		return false;
 	}
 
-	bool TryExecute(Process session, string name, params string[] arguments)
+	bool TryExecute(Session session, string name, params string[] arguments)
 	{
 		var stdIn = Console.In;
 		var stdOut = Console.Out;
 		return TryExecute(session, stdIn, stdOut, name, arguments);
 	}
 
-	bool TryExecute(Process session, TextReader stdIn, TextWriter stdOut, string name, params string[] arguments)
+	bool TryExecute(Session session, TextReader stdIn, TextWriter stdOut, string name, params string[] arguments)
 	{
-		var builtIn = new BuiltInPrograms();
-		builtIn.Initialize(currentUserSession.Config.Clone());
-		builtIn.Console.SetIn(stdIn);
-		builtIn.Console.SetOut(stdOut);
-
-		var executed = builtIn.TryExecuteInbuilt(name, arguments);
-
-		session.Config.currentDirectory = builtIn.Config.currentDirectory; // this could have changed
+		var executed = TryExecuteInbuilt(name, arguments);
 
 		if (executed == false)
 		{
 			var file = "/bin/" + name;
 			if (File.Exists(file))
 			{
-				var typeFulleName = File.ReadAllText(file);
-				var type = Assembly.GetExecutingAssembly().GetType(typeFulleName);
-				if (type == null) throw new Error("unable to find type " + typeFulleName);
-				var instance = Activator.CreateInstance(type);
-				if (instance == null) throw new Error("failed to create instance of " + type);
-				var program = (Program)instance;
-				program.Initialize(currentUserSession.Config.Clone());
-				program.Console.SetIn(stdIn);
-				program.Console.SetOut(stdOut);
+				var p = OperatingSystem.NewProcess();
+				p.Session = currentUserSession.Config.Clone();
+				p.Session.stdIn = stdIn;
+				p.Session.stdOut = stdOut;
+				p.Start(file, arguments);
 
-				program.Main(arguments);
 				return true;
 			}
 		}
 		return executed;
 	}
 
-	class BuiltInPrograms : Process
+
+	bool TryExecuteInbuilt(string name, params string[] arguments)
 	{
-
-
-
-		public bool TryExecuteInbuilt(string name, params string[] arguments)
+		if (name == "clr" || name == "clear" || name == "cls")
 		{
-			if (name == "clr" || name == "clear" || name == "cls")
-			{
-				OperatingSystem.terminal.Clear();
-			}
-			else if (name == "cd")
-			{
-				if (arguments.Length != 1) throw new Error("one argument required");
-				var p = arguments[0];
-				if (!Directory.Exists(p)) throw new Error("directory '" + p + "' doesnt exist");
-				var d = Directory.GetDirEntry(p);
-				Environment.CurrentDirectory = d.FullName;
-			}
-			else if (name == "logout")
-			{
-				OperatingSystem.terminal.Clear();
-			}
-			else if (name == "who")
-			{
-				//To see list of logged in user type who or w command:
-				Console.WriteLine(this.Environment.UserName);
-			}
-			else if (name == "instal")
-			{
-				var p = "/";
-				if (arguments.Length == 1) p = Path.GetFullPath(arguments[0]);
-				new InitializeFileSystem().Install(this, p);
-			}
-			else if (name == "dir" || name == "ls")
-			{
-				var dirPath = Environment.CurrentDirectory;
-				if (arguments.Length > 0)
-					dirPath = Path.GetFullPath(arguments[0]);
-
-				var dir = Directory.GetDirEntry(dirPath);
-				if (!dir.Exists) throw new Error("directory '" + dir.FullName + "' doesnt exist");
-
-				var ecma48 = new StdLib.Ecma48.Client(Console.Out);
-				ecma48.ResetAttributes();
-
-				int counter = 0;
-				foreach (var d in dir.EnumerateDirectories())
-				{
-					counter++;
-					ecma48.SetForegroundColor(StdLib.Ecma48.Color.Default);
-					Console.Write(d.CreationTime + "  " + d.LastWriteTime);
-					ecma48.SetForegroundColor(StdLib.Ecma48.Color.Cyan);
-					Console.WriteLine("  D  " + d.Name);
-				}
-				foreach (var f in dir.EnumerateFiles())
-				{
-					counter++;
-					ecma48.SetForegroundColor(StdLib.Ecma48.Color.Default);
-					Console.Write(f.CreationTime + "  " + f.LastWriteTime);
-					ecma48.SetForegroundColor(StdLib.Ecma48.Color.Green);
-					Console.WriteLine("  F  " + f.Name);
-				}
-				if (counter == 0)
-					Console.WriteLine("'" + dir.fileSystem + "' is empty");
-
-				ecma48.ResetAttributes();
-			}
-			else if (name == "mkdir")
-			{
-				if (arguments.Length != 1) throw new Error("one argument required");
-				var p = arguments[0];
-				if (File.Exists(p)) throw new Error("'" + p + "' already exists as file");
-				if (Directory.Exists(p)) throw new Error("directory '" + p + "' already exists");
-				Directory.CreateDirectory(p);
-			}
-			else if (name == "rm")
-			{
-				if (arguments.Length != 1) throw new Error("one argument required");
-				var p = arguments[0];
-				if (Directory.Exists(p)) throw new Error("'" + p + "' is directory, use rmdir instead");
-				if (File.Exists(p)) File.Delete(p);
-				else throw new Error("file '" + p + "' doesnt exist");
-			}
-			else if (name == "rmdir")
-			{
-				if (arguments.Length != 1) throw new Error("one argument required");
-				var p = arguments[0];
-				if (File.Exists(p)) throw new Error("'" + p + "' is file, use rm instead");
-				if (Directory.Exists(p)) Directory.Delete(p);
-				else throw new Error("directory '" + p + "' doesnt exist");
-			}
-			else if (name == "touch")
-			{
-				if (arguments.Length != 1) throw new Error("one argument required");
-				var p = arguments[0];
-				if (Directory.Exists(p)) throw new Error("'" + p + "' already exists as directory");
-				if (File.Exists(p)) throw new Error("file '" + p + "' already exists");
-				File.WriteAllText(p, string.Empty);
-			}
-			else if (name == "cat")
-			{
-				if (arguments.Length != 1) throw new Error("one argument required");
-				var p = arguments[0];
-				if (Directory.Exists(p)) throw new Error("'" + p + "' isnt file");
-				if (!File.Exists(p)) throw new Error("file '" + p + "' doesnt exist");
-				Console.WriteLine(File.ReadAllText(p));
-			}
-			else
-			{
-				return false;
-			}
-			return true;
+			var client = new StdLib.Ecma48.Client(Console.Out);
+			client.EraseDisplay();
 		}
+		else if (name == "cd")
+		{
+			if (arguments.Length != 1) throw new Error("one argument required");
+			var p = arguments[0];
+			var d = Directory.GetDirEntry(p);
+			if (!d.Exists) throw new Error("directory '" + p + "' ('" + d.FullName + "') doesnt exist");
+			Environment.CurrentDirectory = d.FullName;
+		}
+		else if (name == "logout")
+		{
+			TryExecuteInbuilt("clear", null);
+			shouldContinue = false;
+		}
+		else if (name == "who")
+		{
+			//To see list of logged in user type who or w command:
+			Console.WriteLine(this.Environment.UserName);
+		}
+		else if (name == "instal")
+		{
+			var p = "/";
+			if (arguments.Length == 1) p = Path.GetFullPath(arguments[0]);
+			new InitializeFileSystem().Install(this, p);
+		}
+		else
+		{
+			return false;
+		}
+		return true;
 	}
-
 
 	void BeginCommand()
 	{

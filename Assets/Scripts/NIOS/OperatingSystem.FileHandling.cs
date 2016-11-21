@@ -72,17 +72,4 @@ public partial class OperatingSystem : IBootSectorProgram
 		var file = dir.GetFileEntry(fileName);
 		return file;
 	}
-
-
-
-
-
-
-
-	string GetAbsolutePathFrom(DirEntry workingDirectory, string relativePath)
-	{
-		if (relativePath.StartsWith("/")) return rootDirectory.FullName + relativePath.Substring(1);
-		if (relativePath.StartsWith("~")) return currentUserSession.Environment.GetFolderPath(SpecialFolder.Personal) + relativePath.Substring(1);
-		return workingDirectory.FullName + relativePath;
-	}
 }

@@ -8,12 +8,12 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
-public abstract class Program : Process
+public abstract class ProgramBase : Session
 {
 	public abstract void Main(string[] arguments);
 }
 
-public class GrepProgram : Program
+public class GrepProgram : ProgramBase
 {
 	public override void Main(string[] arguments)
 	{
@@ -28,7 +28,7 @@ public class GrepProgram : Program
 	}
 }
 
-public class EchoProgram : Program
+public class EchoProgram : ProgramBase
 {
 	public override void Main(string[] arguments)
 	{
@@ -37,7 +37,7 @@ public class EchoProgram : Program
 	}
 }
 
-public class PwdProgram : Program
+public class PwdProgram : ProgramBase
 {
 	public override void Main(string[] arguments)
 	{
@@ -46,7 +46,7 @@ public class PwdProgram : Program
 }
 
 // http://www.computerhope.com/unix/usleep.htm
-public class SleepProgram : Program
+public class SleepProgram : ProgramBase
 {
 	public override void Main(string[] arguments)
 	{
@@ -58,7 +58,7 @@ public class SleepProgram : Program
 }
 
 // http://www.computerhope.com/unix/udate.htm
-public class DateProgram : Program
+public class DateProgram : ProgramBase
 {
 	public override void Main(string[] arguments)
 	{
@@ -67,7 +67,108 @@ public class DateProgram : Program
 	}
 }
 
-public class BruteForceAttackPasswdProgram : Program
+
+public class LsProgram : ProgramBase
+{
+	public override void Main(string[] arguments)
+	{
+		var dirPath = Environment.CurrentDirectory;
+		if (arguments.Length > 0)
+			dirPath = Path.GetFullPath(arguments[0]);
+
+		var dir = Directory.GetDirEntry(dirPath);
+		if (!dir.Exists) throw new Error("directory '" + dir.FullName + "' doesnt exist");
+
+		var ecma48 = new StdLib.Ecma48.Client(Console.Out);
+		ecma48.ResetAttributes();
+
+		int counter = 0;
+		foreach (var d in dir.EnumerateDirectories())
+		{
+			counter++;
+			ecma48.SetForegroundColor(StdLib.Ecma48.Color.Default);
+			Console.Write(d.CreationTime + "  " + d.LastWriteTime);
+			ecma48.SetForegroundColor(StdLib.Ecma48.Color.Cyan);
+			Console.WriteLine("  D  " + d.Name);
+		}
+		foreach (var f in dir.EnumerateFiles())
+		{
+			counter++;
+			ecma48.SetForegroundColor(StdLib.Ecma48.Color.Default);
+			Console.Write(f.CreationTime + "  " + f.LastWriteTime);
+			ecma48.SetForegroundColor(StdLib.Ecma48.Color.Green);
+			Console.WriteLine("  F  " + f.Name);
+		}
+		if (counter == 0)
+			Console.WriteLine("'" + dir.FullName + "' is empty");
+
+		ecma48.ResetAttributes();
+	}
+}
+
+public class MkDirProgram : ProgramBase
+{
+	public override void Main(string[] arguments)
+	{
+		if (arguments.Length != 1) throw new Error("one argument required");
+		var p = arguments[0];
+		if (File.Exists(p)) throw new Error("'" + p + "' already exists as file");
+		if (Directory.Exists(p)) throw new Error("directory '" + p + "' already exists");
+		Directory.CreateDirectory(p);
+	}
+}
+
+public class RmProgram : ProgramBase
+{
+	public override void Main(string[] arguments)
+	{
+		if (arguments.Length != 1) throw new Error("one argument required");
+		var p = arguments[0];
+		if (Directory.Exists(p)) throw new Error("'" + p + "' is directory, use rmdir instead");
+		if (File.Exists(p)) File.Delete(p);
+		else throw new Error("file '" + p + "' doesnt exist");
+	}
+}
+
+public class RmDirProgram : ProgramBase
+{
+	public override void Main(string[] arguments)
+	{
+		if (arguments.Length != 1) throw new Error("one argument required");
+		var p = arguments[0];
+		if (File.Exists(p)) throw new Error("'" + p + "' is file, use rm instead");
+		if (Directory.Exists(p)) Directory.Delete(p);
+		else throw new Error("directory '" + p + "' doesnt exist");
+	}
+}
+
+public class TouchProgram : ProgramBase
+{
+	public override void Main(string[] arguments)
+	{
+		if (arguments.Length != 1) throw new Error("one argument required");
+		var p = arguments[0];
+		if (Directory.Exists(p)) throw new Error("'" + p + "' already exists as directory");
+		if (File.Exists(p)) throw new Error("file '" + p + "' already exists");
+		File.WriteAllText(p, string.Empty);
+	}
+}
+
+public class CatProgram : ProgramBase
+{
+	public override void Main(string[] arguments)
+	{
+		if (arguments.Length != 1) throw new Error("one argument required");
+		var p = arguments[0];
+		if (Directory.Exists(p)) throw new Error("'" + p + "' isnt file");
+		if (!File.Exists(p)) throw new Error("file '" + p + "' doesnt exist");
+		Console.WriteLine(File.ReadAllText(p));
+	}
+}
+
+
+
+public class BruteForceAttackPasswdProgram : ProgramBase
 {
 	public override void Main(string[] arguments)
 	{

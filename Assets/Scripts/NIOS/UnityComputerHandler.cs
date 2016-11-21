@@ -7,7 +7,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class UnityComputerHandler : MonoBehaviour, IPlayerTouched
+public class UnityComputerHandler : NeitriBehavior, IPlayerTouched
 {
 	public string computerId;
 
@@ -16,11 +16,14 @@ public class UnityComputerHandler : MonoBehaviour, IPlayerTouched
 	Computer machine;
 	bool typingEnabled;
 
-	void OnEnable()
+	protected override void OnEnable()
 	{
-		machine = new Computer();
+
 		terminal = new UnityTerminal(GetComponentInChildren<Text>());
 		if (string.IsNullOrEmpty(computerId)) computerId = this.GetInstanceID().ToString();
+		
+		machine = new Computer();
+		machine.computerId = computerId;
 
 		machine.ConnectDevice(terminal);
 		machine.ConnectDevice(new StorageDevice(Application.dataPath + "/../VirtualDevicesData/computer_" + computerId + "_disc_1.txt"));
@@ -32,15 +35,18 @@ public class UnityComputerHandler : MonoBehaviour, IPlayerTouched
 		machine.Bootup();
 	}
 
+	protected override void OnDisable()
+	{
+		ShutDown();
+	}
+
 	public void ShutDown()
 	{
 		machine.ShutDown();
 	}
 
-	void Update()
+	protected override void Update()
 	{
-		terminal.UnityUpdate();
-
 		if (typingEnabled)
 		{
 			terminal.DoType(Input.inputString);
@@ -50,6 +56,8 @@ public class UnityComputerHandler : MonoBehaviour, IPlayerTouched
 				player.InputEnabled(true);
 			}
 		}
+
+		terminal.DisplayUpdate();
 	}
 
 	PlayerControl player;

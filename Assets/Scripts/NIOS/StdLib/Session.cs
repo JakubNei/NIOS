@@ -34,11 +34,11 @@ public enum SpecialFolder
 	CommonProgramFiles = 43
 }
 
-public class Process
+public class Session
 {
 	public class ThreadClass : Shortcuts
 	{
-		public ThreadClass(Process s) : base(s)
+		public ThreadClass(Session s) : base(s)
 		{
 		}
 
@@ -55,7 +55,7 @@ public class Process
 		TextWriter stdOut { get { return Config.stdOut; } set { Config.stdOut = value; } }
 		TextWriter stdErr { get { return Config.stdErr; } set { Config.stdErr = value; } }
 
-		public ConsoleClass(Process session) : base(session)
+		public ConsoleClass(Session session) : base(session)
 		{
 		}
 
@@ -461,7 +461,7 @@ public class Process
 		// public void SetEnvironmentVariable(string variable, string value, EnvironmentVariableTarget target);
 
 
-		public EnvironmentClass(Process session) : base(session)
+		public EnvironmentClass(Session session) : base(session)
 		{
 		}
 	}
@@ -470,7 +470,7 @@ public class Process
 
 	public class PathClass : Shortcuts
 	{
-		public PathClass(Process session) : base(session)
+		public PathClass(Session session) : base(session)
 		{
 		}
 
@@ -494,7 +494,7 @@ public class Process
 			var parts = paths.SelectMany(p1 =>
 				p1.Split(new[] { PathSeparator }, StringSplitOptions.RemoveEmptyEntries).Select(p2 => p2.Trim())
 			);
-			return "/" + string.Join("/", parts.ToArray());
+			return string.Join("/", parts.ToArray());
 		}
 
 		public string GetDirectoryName(string path)
@@ -532,8 +532,9 @@ public class Process
 
 		public string GetFullPath(string path)
 		{
-			if (path.StartsWith("/")) return path;
-			else return Combine(Environment.CurrentDirectory, path);
+			if (path.StartsWith("/")) return "/" + Combine(path.Substring(1));
+			else if (path.StartsWith("~")) return "/" + Combine(Environment.GetFolderPath(SpecialFolder.Personal), path.Substring(1));
+			else return "/" + Combine(Environment.CurrentDirectory, path);
 		}
 
 		public char[] GetInvalidFileNameChars()
@@ -581,7 +582,7 @@ public class Process
 
 	public class FileClass : Shortcuts
 	{
-		public FileClass(Process session) : base(session)
+		public FileClass(Session session) : base(session)
 		{
 		}
 		public FileEntry GetFileEntry(string path)
@@ -812,7 +813,7 @@ public class Process
 	// https://msdn.microsoft.com/en-us/library/07wt70x2(v=vs.110).aspx
 	public class DirectoryClass : Shortcuts
 	{
-		public DirectoryClass(Process session) : base(session)
+		public DirectoryClass(Session session) : base(session)
 		{
 		}
 
@@ -981,7 +982,7 @@ public class Process
 
 	public class Shortcuts
 	{
-		protected Process session;
+		protected Session session;
 
 		protected OperatingSystem OperatingSystem { get { return session.OperatingSystem; } }
 		protected ConsoleClass Console { get { return session.Console; } }
@@ -991,7 +992,7 @@ public class Process
 		protected DirectoryClass Directory { get { return session.Directory; } }
 		protected Configuration Config { get { return session.Config; } }
 
-		public Shortcuts(Process session)
+		public Shortcuts(Session session)
 		{
 			this.session = session;
 		}

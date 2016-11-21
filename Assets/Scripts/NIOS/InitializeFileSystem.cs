@@ -1,24 +1,37 @@
 ﻿using StdLib;
+using System;
 
 public class InitializeFileSystem
 {
 
 
-	public void Install(Process s, string dirPath)
+	void IsClass(FileEntry file, Type type)
+	{
+		file.WriteAllText("make_c_sharp_instance_of:" + type.FullName);
+	}
+
+	public void Install(Session s, string dirPath)
 	{
 		var root = s.Directory.GetDirEntry(dirPath);
 
-		s.Console.WriteLine("installing os to " + root.FullName);
+		s.Console.WriteLine("installing nios to " + root.FullName);
 
 		// http://www.thegeekstuff.com/2010/09/linux-file-system-structure/?utm_source=tuicool
 		var bin = root.CreateSubdirectory("bin");
 		{
-			bin.GetFileEntry("echo").WriteAllText(typeof(EchoProgram).FullName);
-			bin.GetFileEntry("grep").WriteAllText(typeof(GrepProgram).FullName);
-			bin.GetFileEntry("pwd").WriteAllText(typeof(PwdProgram).FullName);
-			bin.GetFileEntry("sleep").WriteAllText(typeof(SleepProgram).FullName);
-			bin.GetFileEntry("date").WriteAllText(typeof(DateProgram).FullName);
-			bin.GetFileEntry("brute").WriteAllText(typeof(BruteForceAttackPasswdProgram).FullName);
+			IsClass(bin.GetFileEntry("sh"), typeof(Shell));
+			IsClass(bin.GetFileEntry("echo"), typeof(EchoProgram));
+			IsClass(bin.GetFileEntry("grep"), typeof(GrepProgram));
+			IsClass(bin.GetFileEntry("pwd"), typeof(PwdProgram));
+			IsClass(bin.GetFileEntry("sleep"), typeof(SleepProgram));
+			IsClass(bin.GetFileEntry("date"), typeof(DateProgram));
+			IsClass(bin.GetFileEntry("mkdir"), typeof(MkDirProgram));
+			IsClass(bin.GetFileEntry("rm"), typeof(RmProgram));
+			IsClass(bin.GetFileEntry("rmdir"), typeof(RmDirProgram));
+			IsClass(bin.GetFileEntry("cat"), typeof(CatProgram));
+			IsClass(bin.GetFileEntry("touch"), typeof(TouchProgram));
+			IsClass(bin.GetFileEntry("ls"), typeof(LsProgram));
+			IsClass(bin.GetFileEntry("brute"), typeof(BruteForceAttackPasswdProgram));
 		}
 		var sbin = root.CreateSubdirectory("sbin");
 		var etc = root.CreateSubdirectory("etc");

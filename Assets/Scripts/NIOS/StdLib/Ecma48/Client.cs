@@ -20,6 +20,19 @@ namespace StdLib.Ecma48
 			TextWriter = textWriter;
 		}
 
+		public void WriteLine()
+		{
+			TextWriter.WriteLine();
+		}
+		public void WriteLine(string text)
+		{
+			TextWriter.WriteLine(text);
+		}
+		public void WriteLine(char text)
+		{
+			TextWriter.WriteLine(text);
+		}
+
 		public void Write(string text)
 		{
 			TextWriter.Write(text);

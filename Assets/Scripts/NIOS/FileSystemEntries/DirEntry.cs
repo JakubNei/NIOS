@@ -23,30 +23,33 @@ public class DirEntry : FileSystemEntry // DirectoryInfo
 		}
 	}
 
+	/// <summary>
+	/// If true, then this directory will not by touched by file systems.
+	/// </summary>
+	public bool isMountPoint = false;
+	bool initialized = false;
+	bool exists = false;
+	DirEntry parent;
 
-	List<DirEntry> _directories = new List<DirEntry>();
+	List<DirEntry> directories = new List<DirEntry>();
 	List<DirEntry> Directories
 	{
 		get
 		{
 			TryInitialize();
-			return _directories;
+			return directories;
 		}
 	}
-	List<FileEntry> _files = new List<FileEntry>();
+	List<FileEntry> files = new List<FileEntry>();
 	List<FileEntry> Files
 	{
 		get
 		{
 			TryInitialize();
-			return _files;
+			return files;
 		}
 	}
 	IEnumerable<FileSystemEntry> fileSystemEntries { get { return Directories.Cast<FileSystemEntry>().Concat(Files.Cast<FileSystemEntry>()); } }
-
-	bool initialized = false;
-	bool exists = false;
-	DirEntry parent;
 
 
 	public static DirEntry MakeRoot()
@@ -58,17 +61,7 @@ public class DirEntry : FileSystemEntry // DirectoryInfo
 	{
 		this.parent = parent;
 	}
-	public void FileSystemAddsDir(string name)
-	{
-		var d = new DirEntry(name, this);
-		d.exists = true;
-		_directories.Add(d);
-	}
-	public void FileSystemAddsFile(string name)
-	{
-		var f = new FileEntry(name, this, true);
-		_files.Add(f);
-	}
+
 
 	public string GetRelativePathTo(FileSystemEntry other)
 	{
@@ -95,15 +88,47 @@ public class DirEntry : FileSystemEntry // DirectoryInfo
 			throw new System.IO.IOException(name + " already exists, its a file in " + this.FullName);
 	}
 
+
+	public class UpdateHandle
+	{
+		public DirEntry DirEntry { get; private set; }
+		public List<DirEntry> Directories { get { return DirEntry.directories; } }
+		public List<FileEntry> Files { get { return DirEntry.files; } }
+		DirEntry[] mountPoints;
+		public UpdateHandle(DirEntry dirEntry)
+		{
+			DirEntry = dirEntry;
+			mountPoints = Directories.Where(d => d.isMountPoint).ToArray();
+			Directories.Clear();
+			Files.Clear();
+		}
+		public void AddDirectory(string name)
+		{
+			var d = new DirEntry(name, DirEntry);
+			d.exists = true;
+			DirEntry.directories.Add(d);
+		}
+		public void AddFile(string name)
+		{
+			var f = new FileEntry(name, DirEntry, true);
+			DirEntry.files.Add(f);
+		}
+		public void Finished()
+		{
+			Directories.RemoveAll(d => mountPoints.Any(m => m.Name == d.Name));
+			Directories.AddRange(mountPoints);
+		}
+	}
+
 	void TryInitialize()
 	{
 		if (initialized) return;
 		initialized = true;
 		if (fileSystem != null)
 		{
-			Files.Clear();
-			Directories.Clear();
-			fileSystem.GatherDirectoryInfo(this);
+			var u = new UpdateHandle(this);
+			fileSystem.UpdateDirectoryInfo(u);
+			u.Finished();
 		}
 	}
 
@@ -1078,7 +1103,7 @@ public class DirEntry : FileSystemEntry // DirectoryInfo
 	public override void Refresh()
 	{
 		initialized = false;
-		foreach (var d in _directories)
+		foreach (var d in directories)
 			if (d.initialized)
 				d.Refresh();
 	}
