@@ -14,7 +14,11 @@ has simple ecma 48 console simulation
 to do: users, groups, multi user environment, process management, network/sockets simulation
 
 # Examples
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/j3kOllcE9yM/0.jpg)](https://www.youtube.com/watch?v=j3kOllcE9yM)
+
+![](http://image.prntscr.com/image/9858f3d9ca0e4ba58089617893e6882e.png)
+
+Video:
+[![](https://img.youtube.com/vi/j3kOllcE9yM/0.jpg)](https://www.youtube.com/watch?v=j3kOllcE9yM)
 
 # License
 MIT License
