@@ -21,7 +21,7 @@ public class UnityComputerHandler : NeitriBehavior, IPlayerTouched
 
 		terminal = new UnityTerminal(GetComponentInChildren<Text>());
 		if (string.IsNullOrEmpty(computerId)) computerId = this.GetInstanceID().ToString();
-		
+
 		machine = new Computer();
 		machine.computerId = computerId;
 
@@ -63,6 +63,8 @@ public class UnityComputerHandler : NeitriBehavior, IPlayerTouched
 	PlayerControl player;
 	public void OnTouched(PlayerControl player)
 	{
+		if (!machine.isRunning) machine.Bootup();
+
 		this.player = player;
 		player.InputEnabled(false);
 		this.typingEnabled = true;

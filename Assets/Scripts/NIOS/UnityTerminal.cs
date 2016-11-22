@@ -67,6 +67,7 @@ public class UnityTerminal : IDevice
 			client.WriteLine();
 			client.WriteLine();
 			client.WriteLine("no data received for over " + timeoutSeconds + " seconds");
+			client.WriteLine("tap to bootup");
 			client.WriteLine("debug info:");
 			client.WriteLine("	current time: " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
 			client.WriteLine("	columns: " + device.ColumnsCount);

@@ -13,6 +13,8 @@ public class Computer
 
 	public string computerId;
 
+	public bool isRunning;
+
 	public IEnumerable<IDevice> Devices { get { return devices; } }
 
 	public event Action<IDevice> OnDeviceConnected;
@@ -72,6 +74,8 @@ public class Computer
 
 	public void ShutDown()
 	{
+		isRunning = false;
+
 		foreach (var w in threads)
 		{
 			if (w.IsAlive)
@@ -88,7 +92,7 @@ public class Computer
 
 	public void Bootup(IDevice preferredBootDevice = null)
 	{
-		ShutDown();
+		isRunning = true;
 
 		CreateThread(() =>
 		{
