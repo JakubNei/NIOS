@@ -147,11 +147,11 @@ GameObject:
   serializedVersion: 4
   m_Component:
   - 4: {fileID: -1481538986}
-  - 143: {fileID: 75024506}
+  - 114: {fileID: 114000011166250960}
   - 114: {fileID: -862938042}
+  - 143: {fileID: 75024506}
   - 54: {fileID: -977879756}
   - 82: {fileID: -1965030998}
-  - 114: {fileID: -638542518}
   m_Layer: 0
   m_Name: FPSController
   m_TagString: Untagged
@@ -229,26 +229,15 @@ MonoBehaviour:
   moveDir: {x: 0, y: 0, z: 0}
   stickToGroundForce: 10
   gravityMultiplier: 1
-  xSensitivity: 20
-  ySensitivity: 20
+  xSensitivity: 50
+  ySensitivity: 50
   yMinimum: -90
   yMaximum: 90
   moveSpeed: 5
   clampVerticalRotation: 1
   smoothRotation: 1
   smothRotationSpeed: 5
---- !u!114 &-638542518
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: -1737102274}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 34e9552905150a44b9e2faf3cd290429, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  cursor: {fileID: 0}
+  cursorIsLocked: 1
 --- !u!143 &75024506
 CharacterController:
   m_ObjectHideFlags: 1
@@ -331,3 +320,15 @@ AudioListener:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: -1096411266}
   m_Enabled: 1
+--- !u!114 &114000011166250960
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: -1737102274}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34e9552905150a44b9e2faf3cd290429, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cursor: {fileID: 0}

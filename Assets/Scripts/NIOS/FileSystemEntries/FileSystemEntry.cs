@@ -35,13 +35,13 @@ public abstract class FileSystemEntry // FileSystemInfo
 		if (parent != null)
 			fileSystem = parent.fileSystem;
 
-		CreationTimeUtc = DateTime.UtcNow;
-		LastWriteTimeUtc = DateTime.UtcNow;
-		LastAccessTimeUtc = DateTime.UtcNow;
+		CreationTimeUtc = World.UtcNow;
+		LastWriteTimeUtc = World.UtcNow;
+		LastAccessTimeUtc = World.UtcNow;
 
-		CreationTime = DateTime.Now;
-		LastWriteTime = DateTime.Now;
-		LastAccessTime = DateTime.Now;
+		CreationTime = World.Now;
+		LastWriteTime = World.Now;
+		LastAccessTime = World.Now;
 	}
 
 

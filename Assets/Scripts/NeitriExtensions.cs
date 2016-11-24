@@ -8,7 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 /// <summary>
-/// Version 2
+/// Version 1.1
 /// Many useful extensions I've made over the years.
 /// All in one class.
 /// </summary>
@@ -603,6 +603,13 @@ public static class NeitriExtensions
 		}
 		// Step 7
 		return d[n, m];
+	}
+	#endregion
+
+	#region char extensions
+	public static bool IsWhiteSpace(this char c)
+	{
+		return oneOrMoreWhiteSpaces.IsMatch(c.ToString());
 	}
 	#endregion
 

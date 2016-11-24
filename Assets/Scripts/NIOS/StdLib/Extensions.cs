@@ -19,7 +19,7 @@ namespace StdLib
 				file.Create();
 			return file;
 		}
-		public static string ReadPassword(this Session.ConsoleClass console, char replacingChar = '*')
+		public static string ReadPassword(this Session.ApiClass.ConsoleClass console, char replacingChar = '*')
 		{
 			var str = string.Empty;
 			while (true)

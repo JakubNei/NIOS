@@ -7,25 +7,27 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class UnityComputerHandler : NeitriBehavior, IPlayerTouched
+public class ComputerHandler : NeitriBehavior
 {
 	public string computerId;
 
-	UnityTerminal terminal;
+	TextDisplayDevice terminal;
 
 	Computer machine;
 	bool typingEnabled;
 
+	public TextDisplayDevice[] displays;
+	public InputDevice input; 
+
 	protected override void OnEnable()
 	{
-
-		terminal = new UnityTerminal(GetComponentInChildren<Text>());
 		if (string.IsNullOrEmpty(computerId)) computerId = this.GetInstanceID().ToString();
 
 		machine = new Computer();
 		machine.computerId = computerId;
 
-		machine.ConnectDevice(terminal);
+		machine.ConnectDevice(input);
+		displays.ForEach(machine.ConnectDevice);
 		machine.ConnectDevice(new StorageDevice(Application.dataPath + "/../VirtualDevicesData/computer_" + computerId + "_disc_1.txt"));
 		machine.ConnectDevice(new StorageDevice(Application.dataPath + "/../VirtualDevicesData/computer_" + computerId + "_disc_1.txt"));
 	}
@@ -45,28 +47,4 @@ public class UnityComputerHandler : NeitriBehavior, IPlayerTouched
 		machine.ShutDown();
 	}
 
-	protected override void Update()
-	{
-		if (typingEnabled)
-		{
-			terminal.DoType(Input.inputString);
-			if (Input.GetKeyDown(KeyCode.Escape))
-			{
-				typingEnabled = false;
-				player.InputEnabled(true);
-			}
-		}
-
-		terminal.DisplayUpdate();
-	}
-
-	PlayerControl player;
-	public void OnTouched(PlayerControl player)
-	{
-		if (!machine.isRunning) machine.Bootup();
-
-		this.player = player;
-		player.InputEnabled(false);
-		this.typingEnabled = true;
-	}
 }

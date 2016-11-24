@@ -8,7 +8,8 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
-public abstract class ProgramBase : Session
+
+public abstract class ProgramBase : Session.ApiClass.ProgramBase
 {
 	public abstract void Main(string[] arguments);
 }
@@ -32,8 +33,8 @@ public class EchoProgram : ProgramBase
 {
 	public override void Main(string[] arguments)
 	{
-		if (arguments.Length != 1) throw new Error("one argument expected");
-		Console.WriteLine(arguments[0]);
+		if (arguments.Length == 0) throw new Error("at least one argument expected");
+		Console.WriteLine(arguments.Join(" "));
 	}
 }
 
@@ -62,7 +63,7 @@ public class DateProgram : ProgramBase
 {
 	public override void Main(string[] arguments)
 	{
-		if (arguments.Contains("-u") || arguments.Contains("--utc") || arguments.Contains("--univeral")) Console.WriteLine(DateTime.UtcNow);
+		if (arguments.Contains("-u") || arguments.Contains("--utc") || arguments.Contains("--univeral")) Console.WriteLine(World.UtcNow);
 		Console.WriteLine(DateTime.Now);
 	}
 }

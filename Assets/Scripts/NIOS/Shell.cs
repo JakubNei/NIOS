@@ -10,7 +10,6 @@ using System.Text.RegularExpressions;
 public class Shell : ProgramBase
 {
 	string currentCommand;
-	Session currentUserSession { get { return this; } }
 	bool shouldContinue = true;
 
 	public override void Main(string[] arguments)
@@ -24,13 +23,13 @@ public class Shell : ProgramBase
 			//UnityEngine.Debug.Log("executing " + line);
 			var t = Thread.NewThread(() =>
 			{
-				ExecuteCommand(currentUserSession, line);
+				ExecuteCommand(Session, line);
 			});
 			t.Start();
-			var started = DateTime.UtcNow;
+			var started = World.UtcNow;
 			while (t != null && t.IsAlive)
 			{
-				if (started.AddSeconds(10) < DateTime.UtcNow)
+				if (started.AddSeconds(10) < World.UtcNow)
 				{
 					t.Abort();
 					t = null;
@@ -116,13 +115,6 @@ public class Shell : ProgramBase
 			}
 		}
 
-		static Regex isWhiteChar = new Regex(@"^\s+$");
-
-		bool IsWhiteChar(char c)
-		{
-			return isWhiteChar.IsMatch(c.ToString());
-		}
-
 		bool IsSpecialMeaningChar(char c)
 		{
 			return c == '|' || c == '>' || c == '<';
@@ -145,10 +137,11 @@ public class Shell : ProgramBase
 				case TokenType.RedirectInput:
 				case TokenType.Start:
 					currentType = TokenType.ProgramName;
-					while (Can && !IsWhiteChar(Peek) && !IsSpecialMeaningChar(Peek))
+					while (Can && Peek.IsWhiteSpace() && !IsSpecialMeaningChar(Peek))
 						currentText += Eat();
 					break;
 
+				case TokenType.ProgramName:
 				default:
 
 					if (IsSpecialMeaningChar(Peek))
@@ -187,7 +180,7 @@ public class Shell : ProgramBase
 								isInsideQuotes = Eat();
 								continue;
 							}
-							if (argumentsDoSplitByWhiteChar && IsWhiteChar(Peek))
+							if (argumentsDoSplitByWhiteChar && Peek.IsWhiteSpace())
 								break;
 
 							if (IsSpecialMeaningChar(Peek))
@@ -210,7 +203,7 @@ public class Shell : ProgramBase
 			}
 
 			// skip white chars
-			while (Can && IsWhiteChar(Peek)) Eat();
+			while (Can && Peek.IsWhiteSpace()) Eat();
 		}
 	}
 
@@ -225,8 +218,6 @@ public class Shell : ProgramBase
 		while (tokenizer.Can)
 		{
 			tokenizer.MoveNext();
-			if (tokenizer.currentType == CmdTokenizer.TokenType.ProgramName)
-				tokenizer.argumentsDoSplitByWhiteChar = DoesProgramWantWholeArgument(tokenizer.currentText);
 
 			var c = tokenizer.currentText;
 			if (c == "|" || c == ">" || c == "<") isSimpleExecution = false;
@@ -293,13 +284,6 @@ public class Shell : ProgramBase
 		return true;
 	}
 
-	bool DoesProgramWantWholeArgument(string name)
-	{
-		if (name == "echo") return true;
-
-		return false;
-	}
-
 	bool TryExecute(Session session, string name, params string[] arguments)
 	{
 		var stdIn = Console.In;
@@ -317,7 +301,6 @@ public class Shell : ProgramBase
 			if (File.Exists(file))
 			{
 				var p = OperatingSystem.NewProcess();
-				p.Session = currentUserSession.Config.Clone();
 				p.Session.stdIn = stdIn;
 				p.Session.stdOut = stdOut;
 				p.Start(file, arguments);
@@ -358,7 +341,7 @@ public class Shell : ProgramBase
 		{
 			var p = "/";
 			if (arguments.Length == 1) p = Path.GetFullPath(arguments[0]);
-			new InitializeFileSystem().Install(this, p);
+			new InitializeFileSystem().Install(Session, p);
 		}
 		else
 		{
@@ -370,9 +353,9 @@ public class Shell : ProgramBase
 	void BeginCommand()
 	{
 		currentCommand = string.Empty;
-		var path = currentUserSession.Environment.CurrentDirectory;
+		var path = Environment.CurrentDirectory;
 		var homePath = Environment.GetFolderPath(SpecialFolder.Personal);
 		if (path.StartsWith(homePath)) path = "~" + path.Substring(homePath.Length);
-		Console.Write(currentUserSession.Environment.UserName + "@" + Environment.MachineName + ":" + path + "$ ");
+		Console.Write(Environment.UserName + "@" + Environment.MachineName + ":" + path + "$ ");
 	}
 }

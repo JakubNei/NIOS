@@ -10,33 +10,25 @@ using UnityEngine;
 using UnityEngine.UI;
 using StdLib;
 
-public class UnityTerminal : IDevice
+public class TextDisplayDevice : NeitriBehavior, IDevice
 {
-	Text textComponent;
-	public DeviceType DeviceType { get { return DeviceType.Terminal; } }
-	public Encoding Encoding { get { return Encoding.ASCII; } }
-
-	public string NewLine { get; set; }
-
-	CultureInfo cultureInfo = new CultureInfo("", false);
-
-	public CultureInfo CultureInfo { get { return cultureInfo; } }
+	public Text textComponent;
+	public DeviceType DeviceType { get { return DeviceType.Display; } }
+	Encoding Encoding { get { return Encoding.ASCII; } }
 
 	MyWriteStream myWriteStream;
-	MyReadStream myReadStream;
 
 	StdLib.Ecma48.Device device;
 	StdLib.Ecma48.Client client;
 	ulong deviceLastDataVersion;
 
-	public UnityTerminal(Text textComponent)
+	protected override void Start()
 	{
-		this.textComponent = textComponent;
+		base.Start();
 
-		NewLine = "\n";
+		if (textComponent == null) textComponent = GetComponentInChildren<Text>(); ;
 
 		myWriteStream = new MyWriteStream(this);
-		myReadStream = new MyReadStream(this);
 
 		TextGenerator textGen = new TextGenerator();
 		TextGenerationSettings generationSettings = textComponent.GetGenerationSettings(textComponent.rectTransform.rect.size);
@@ -56,34 +48,45 @@ public class UnityTerminal : IDevice
 
 	}
 
+
+	protected override void Update()
+	{
+		base.Update();
+
+		DisplayUpdate();
+	}
+
 	DateTime lastSignalReceived = DateTime.MinValue;
+	DateTime lastUpdate = DateTime.MinValue;
 	bool noMessageReceivedPrinted = false;
-	public void DisplayUpdate()
+	void DisplayUpdate()
 	{
 		const int timeoutSeconds = 60;
-		if (lastSignalReceived.IsOver(seconds: timeoutSeconds).InPastComparedTo(DateTime.UtcNow))
+		if (lastSignalReceived.IsOver(seconds: timeoutSeconds).InPastComparedTo(World.UtcNow))
 		{
-			lastSignalReceived = DateTime.UtcNow;
-			client.WriteLine();
-			client.WriteLine();
-			client.WriteLine("no data received for over " + timeoutSeconds + " seconds");
-			client.WriteLine("tap to bootup");
-			client.WriteLine("debug info:");
-			client.WriteLine("	current time: " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
-			client.WriteLine("	columns: " + device.ColumnsCount);
-			client.WriteLine("	rows: " + device.RowsCount);
-			client.WriteLine();
-			client.WriteLine();
+			if (lastUpdate.IsOver(seconds: 1).InPastComparedTo(World.UtcNow))
+			{
+				lastUpdate = World.UtcNow;
+				var backup = lastSignalReceived;
+
+				client.EraseDisplay();
+				client.WriteLine();
+				client.WriteLine();
+				client.WriteLine("last signal received " + World.UtcNow.Subtract(backup).TotalSeconds + " seconds ago");
+				client.WriteLine("debug info:");
+				client.WriteLine("	current time: " + World.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
+				client.WriteLine("	columns: " + device.ColumnsCount);
+				client.WriteLine("	rows: " + device.RowsCount);
+				client.WriteLine();
+				client.WriteLine();
+
+				lastSignalReceived = backup;
+			}
 		}
 
 
 		myWriteStream.UnityUpdate();
 		UpdateTextArea();
-	}
-
-	public void DoType(string text)
-	{
-		myReadStream.DoType(text);
 	}
 
 
@@ -150,7 +153,7 @@ public class UnityTerminal : IDevice
 	class MyWriteStream : Stream
 	{
 		string pendingWriteText = string.Empty;
-		UnityTerminal unityTerminal;
+		TextDisplayDevice p;
 
 		public override bool CanRead { get { return false; } }
 
@@ -162,16 +165,16 @@ public class UnityTerminal : IDevice
 
 		public override long Position { get { return pendingWriteText.Length; } set { throw new NotImplementedException(); } }
 
-		public MyWriteStream(UnityTerminal u)
+		public MyWriteStream(TextDisplayDevice p)
 		{
-			this.unityTerminal = u;
+			this.p = p;
 		}
 
 		public void UnityUpdate()
 		{
 			if (pendingWriteText.Length > 0)
 			{
-				unityTerminal.device.Parse(pendingWriteText);
+				p.device.Parse(pendingWriteText);
 				pendingWriteText = string.Empty;
 			}
 		}
@@ -197,87 +200,16 @@ public class UnityTerminal : IDevice
 
 		public override void Write(byte[] buffer, int offset, int count)
 		{
-			unityTerminal.lastSignalReceived = DateTime.UtcNow;
+			p.lastSignalReceived = World.UtcNow;
 			var dst = new byte[count];
 			Array.Copy(buffer, offset, dst, 0, count);
-			pendingWriteText += unityTerminal.Encoding.GetString(dst);
-		}
-	}
-
-	class MyReadStream : Stream
-	{
-		UnityTerminal unityTerminal;
-		string pendingTextToRead = string.Empty;
-
-		ManualResetEvent canRead = new ManualResetEvent(false);
-
-		public override bool CanRead { get { return true; } }
-
-		public override bool CanSeek { get { return false; } }
-
-		public override bool CanWrite { get { return false; } }
-
-		public override long Length { get { return pendingTextToRead.Length; } }
-
-		public override long Position { get { return 0; } set { throw new NotImplementedException(); } }
-
-		public MyReadStream(UnityTerminal u)
-		{
-			this.unityTerminal = u;
-		}
-		public void DoType(string text)
-		{
-			text = text.Replace("\r", "\n"); // Unity says enter is only \r, but we want new line
-			if (text.Length > 0)
-			{
-				pendingTextToRead += text;
-				canRead.Set();
-			}
-		}
-
-		public override void Flush()
-		{
-			pendingTextToRead = string.Empty;
-		}
-
-		public override int Read(byte[] buffer, int offset, int count)
-		{
-			while (Length == 0)
-			{
-				canRead.Reset();
-				canRead.WaitOne();
-			}
-			if (count > Length) count = (int)Length;
-
-			var p = unityTerminal.Encoding.GetBytes(pendingTextToRead, 0, count, buffer, offset);
-
-			//DEBUG
-			//var c = pendingTextToRead.Substring(0, p);
-			//Debug.Log("reading " + c + " = " + string.Join(",", c.Select(x => ((int)x).ToString()).ToArray()));
-
-			pendingTextToRead = pendingTextToRead.Substring(p);
-			return p;
-		}
-
-		public override long Seek(long offset, SeekOrigin origin)
-		{
-			throw new NotSupportedException();
-		}
-
-		public override void SetLength(long value)
-		{
-			throw new NotSupportedException();
-		}
-
-		public override void Write(byte[] buffer, int offset, int count)
-		{
-			throw new NotSupportedException();
+			pendingWriteText += p.Encoding.GetString(dst);
 		}
 	}
 
 	public Stream OpenRead()
 	{
-		return myReadStream;
+		return Stream.Null;
 	}
 
 	public Stream OpenWrite()

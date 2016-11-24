@@ -28,7 +28,7 @@ public class Computer
 
 	void Write(Action<StreamWriter> streamWriterAction)
 	{
-		var d = GetFirstDeviceByPrefix("tty");
+		var d = GetFirstDeviceByPrefix("display");
 		if (d == null) return;
 		var sr = new StreamWriter(d.OpenWrite());
 		streamWriterAction.Raise(sr);
@@ -82,7 +82,7 @@ public class Computer
 			{
 				var t = w.Target as Thread;
 				if (t != null && t.IsAlive)
-					t.Abort();
+					t.Interrupt();
 			}
 		}
 		threads.Clear();
@@ -96,7 +96,7 @@ public class Computer
 
 		CreateThread(() =>
 		{
-			if (preferredBootDevice == null) preferredBootDevice = devices.FirstOrDefault(d => d.DeviceType.IOType == DeviceIOType.Block);
+			if (preferredBootDevice == null) preferredBootDevice = devices.FirstOrDefault(d => d.DeviceType == DeviceType.SCSIDevice);
 			if (preferredBootDevice == null)
 				WriteLine("unable to boot up, no block devices attached");
 			/*

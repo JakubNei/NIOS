@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 
 /// <summary>
+/// Version 1
 /// https://docs.unity3d.com/ScriptReference/MonoBehaviour.html
 /// </summary>
 public abstract class NeitriBehavior : MonoBehaviour

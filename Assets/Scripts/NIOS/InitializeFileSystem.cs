@@ -4,17 +4,19 @@ using System;
 public class InitializeFileSystem
 {
 
-
+	public const string MakeType = "make_c_sharp_instance_of:";
 	void IsClass(FileEntry file, Type type)
 	{
-		file.WriteAllText("make_c_sharp_instance_of:" + type.FullName);
+		file.WriteAllText(MakeType + type.FullName);
 	}
 
 	public void Install(Session s, string dirPath)
 	{
-		var root = s.Directory.GetDirEntry(dirPath);
+		var api = s.Api;
 
-		s.Console.WriteLine("installing nios to " + root.FullName);
+		var root = api.Directory.GetDirEntry(dirPath);
+
+		api.Console.WriteLine("installing nios to " + root.FullName);
 
 		// http://www.thegeekstuff.com/2010/09/linux-file-system-structure/?utm_source=tuicool
 		var bin = root.CreateSubdirectory("bin");
@@ -68,6 +70,6 @@ public class InitializeFileSystem
 		var media = root.CreateSubdirectory("media");
 		var srv = root.CreateSubdirectory("srv");
 
-		s.Console.WriteLine("installation done");
+		api.Console.WriteLine("installation done");
 	}
 }

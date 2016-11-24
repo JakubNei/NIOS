@@ -24,7 +24,9 @@ public class MyFirstPersonController : MonoBehaviour
 	public bool smoothRotation = true;
 	public float smothRotationSpeed = 5f;
 
-	public bool cursorIsLocked = true;
+	public float zoomMinFov = 10;
+	public float zoomMaxFov = 90;
+	public float zoomSensitivity = 10;
 
 	// Use this for initialization
 	void Start()
@@ -60,6 +62,14 @@ public class MyFirstPersonController : MonoBehaviour
 		cam.transform.localRotation = newCamRot;
 
 
+		var wheel = Input.GetAxis("Mouse ScrollWheel");
+		if(wheel != 0)
+		{
+			cam.fieldOfView -= wheel * zoomSensitivity;
+			if (cam.fieldOfView > zoomMaxFov) cam.fieldOfView = zoomMaxFov;
+			if (cam.fieldOfView < zoomMinFov) cam.fieldOfView = zoomMinFov;
+		}
+
 		/*
 		if (Input.GetKeyUp(KeyCode.Escape))
 			cursorIsLocked = false;
@@ -67,16 +77,6 @@ public class MyFirstPersonController : MonoBehaviour
 			cursorIsLocked = true;
 			*/
 
-		if (cursorIsLocked)
-		{
-			Cursor.lockState = CursorLockMode.Locked;
-			Cursor.visible = false;
-		}
-		else if (!cursorIsLocked)
-		{
-			Cursor.lockState = CursorLockMode.None;
-			Cursor.visible = true;
-		}
 	}
 
 	Quaternion ClampRotationAroundXAxis(Quaternion q)
