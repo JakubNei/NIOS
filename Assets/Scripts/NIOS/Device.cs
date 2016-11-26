@@ -76,41 +76,8 @@ public class DeviceType
 }
 public interface IDevice
 {
+	Guid Guid { get; }
 	DeviceType DeviceType { get; }
 	Stream OpenRead();
 	Stream OpenWrite();
-}
-
-public class StorageDevice : IDevice
-{
-	string filePath;
-
-	public StorageDevice(string filePath)
-	{
-		this.filePath = filePath;
-	}
-
-	public DeviceType DeviceType { get { return DeviceType.SCSIDevice; } }
-
-	public Stream OpenRead()
-	{
-		var f = new FileInfo(filePath);
-		if (!f.Exists)
-		{
-			if (!f.Directory.Exists) f.Directory.Create();
-			File.WriteAllText(f.FullName, string.Empty);
-		}
-		return f.Open(FileMode.OpenOrCreate, FileAccess.Read, FileShare.ReadWrite);
-	}
-
-	public Stream OpenWrite()
-	{
-		var f = new FileInfo(filePath);
-		if (!f.Exists)
-		{
-			if (!f.Directory.Exists) f.Directory.Create();
-			File.WriteAllText(f.FullName, string.Empty);
-		}
-		return f.Open(FileMode.Truncate, FileAccess.Write, FileShare.ReadWrite);
-	}
 }

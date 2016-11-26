@@ -314,20 +314,24 @@ public static class NeitriExtensions
 	{
 		return (float)System.Math.Round(a);
 	}
+	public static float RoundToInt(this float a)
+	{
+		return (int)System.Math.Round(a);
+	}
 
 	public static float Ceil(this float a)
 	{
 		return (float)System.Math.Ceiling(a);
 	}
 
-	public static float Floor(this float a)
-	{
-		return (float)System.Math.Floor(a);
-	}
-
 	public static int CeilToInt(this float a)
 	{
 		return (int)System.Math.Ceiling(a);
+	}
+
+	public static float Floor(this float a)
+	{
+		return (float)System.Math.Floor(a);
 	}
 
 	public static int FloorToInt(this float a)
@@ -344,6 +348,7 @@ public static class NeitriExtensions
 	{
 		return (long)System.Math.Floor(a);
 	}
+
 
 	public static float Lerp(this float me, float towards, float t)
 	{
@@ -363,6 +368,14 @@ public static class NeitriExtensions
 			if (me < towards) me = towards;
 		}
 		return me;
+	}
+	public static int ToInt(this float a)
+	{
+		return (int)a;
+	}
+	public static long ToLong(this float a)
+	{
+		return (long)a;
 	}
 	#endregion
 
@@ -390,6 +403,14 @@ public static class NeitriExtensions
 	public static double Floor(this double a)
 	{
 		return (double)System.Math.Floor(a);
+	}
+	public static int ToInt(this double a)
+	{
+		return (int)a;
+	}
+	public static long ToLong(this double a)
+	{
+		return (long)a;
 	}
 	#endregion
 

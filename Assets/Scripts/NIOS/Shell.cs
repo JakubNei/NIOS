@@ -12,8 +12,17 @@ public class Shell : ProgramBase
 	string currentCommand;
 	bool shouldContinue = true;
 
+	const string version = "1.0a";
+
 	public override void Main(string[] arguments)
 	{
+
+		var p = Environment.GetFolderPath(SpecialFolder.Personal);
+		if (!Directory.Exists(p)) Directory.CreateDirectory(p);
+		Environment.CurrentDirectory = p;
+
+		Console.WriteLine("Welcome to Bourne-like shell version " + version);
+
 		while (shouldContinue)
 		{
 			BeginCommand();
@@ -137,7 +146,7 @@ public class Shell : ProgramBase
 				case TokenType.RedirectInput:
 				case TokenType.Start:
 					currentType = TokenType.ProgramName;
-					while (Can && Peek.IsWhiteSpace() && !IsSpecialMeaningChar(Peek))
+					while (Can && !Peek.IsWhiteSpace() && !IsSpecialMeaningChar(Peek))
 						currentText += Eat();
 					break;
 
@@ -300,7 +309,7 @@ public class Shell : ProgramBase
 			var file = "/bin/" + name;
 			if (File.Exists(file))
 			{
-				var p = OperatingSystem.NewProcess();
+				var p = this.Process.NewProcess();
 				p.Session.stdIn = stdIn;
 				p.Session.stdOut = stdOut;
 				p.Start(file, arguments);
@@ -318,6 +327,15 @@ public class Shell : ProgramBase
 		{
 			var client = new StdLib.Ecma48.Client(Console.Out);
 			client.EraseDisplay();
+		}
+		else if (name == "help" || name == "man" || name == "?")
+		{
+			var d = Directory.GetDirEntry("/bin/");
+			Console.WriteLine("list of programs or command you can run:");
+			Console.WriteLine("\tshell commands:");
+			foreach (var i in new string[] { "clr", "help", "cd", "logout", "who", "instal" }) Console.WriteLine("\t\t" + i);
+			Console.WriteLine("\tprograms from " + d.FullName + ":");
+			foreach (var f in d.EnumerateFiles()) Console.WriteLine("\t\t" + f.Name);
 		}
 		else if (name == "cd")
 		{

@@ -28,8 +28,8 @@ public class ComputerHandler : NeitriBehavior
 
 		machine.ConnectDevice(input);
 		displays.ForEach(machine.ConnectDevice);
-		machine.ConnectDevice(new StorageDevice(Application.dataPath + "/../VirtualDevicesData/computer_" + computerId + "_disc_1.txt"));
-		machine.ConnectDevice(new StorageDevice(Application.dataPath + "/../VirtualDevicesData/computer_" + computerId + "_disc_1.txt"));
+		machine.ConnectDevice(new RealFileDevice(Application.dataPath + "/../VirtualDevicesData/computer_" + computerId + "_disc_1.txt"));
+		machine.ConnectDevice(new RealFileDevice(Application.dataPath + "/../VirtualDevicesData/computer_" + computerId + "_disc_2.txt"));
 	}
 
 	public void BootUp()

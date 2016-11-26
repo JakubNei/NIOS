@@ -34,7 +34,7 @@ public class CsvFileSystem : IFileSystem
 
 	DirEntry mountPoint;
 
-	public CsvFileSystem(DirEntry mountPoint, FileEntry device)
+	public CsvFileSystem(DirEntry mountPoint, FileEntry device, OperatingSystem os)
 	{
 		this.device = device;
 		this.mountPoint = mountPoint;

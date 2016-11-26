@@ -19,7 +19,7 @@ public interface IFileSystem
 	// lookup node (dir)
 	// mount, returns root dir
 
-	void UpdateDirectoryInfo(DirEntry.UpdateHandle directory);
+	void UpdateDirectoryInfo(DirEntry.UpdateHandle handle);
 
 	void CreateDirectory(DirEntry directory, DirectorySecurity directorySecurity);
 

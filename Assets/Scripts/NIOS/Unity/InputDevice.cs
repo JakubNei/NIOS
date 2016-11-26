@@ -20,9 +20,15 @@ public class InputDevice : NeitriBehavior, IDevice, IInteraction
 	bool typingEnabled;
 
 	MyReadStream myReadStream;
+
+	Guid guid;
+	public Guid Guid { get { return guid; } }
+
+
 	protected override void Start()
 	{
 		myReadStream = new MyReadStream(this);
+		guid = Utils.IntToGuid(GetInstanceID());
 	}
 
 	protected override void Update()

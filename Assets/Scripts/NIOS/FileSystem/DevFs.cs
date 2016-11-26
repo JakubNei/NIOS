@@ -10,43 +10,44 @@ using System.Text;
 public class DevFs : IFileSystem
 {
 	DirEntry mountPoint;
-	Dictionary<string, IDevice> devices = new Dictionary<string, IDevice>();
-
-	public DevFs(DirEntry mountPoint)
+	OperatingSystem os;
+	public DevFs(DirEntry mountPoint, OperatingSystem os)
 	{
 		this.mountPoint = mountPoint;
+		this.os = os;
 	}
 
-	public void AddDevice(IDevice device)
+	public class MyFileEntry : FileEntry
 	{
-		// find unique name, keep adding index until name is unique
-		var nameIndex = 0;
-		var name = string.Empty;
-		do
+		public Guid guid;
+
+		public MyFileEntry(string name, DirEntry parent, bool exists) : base(name, parent, exists)
 		{
-			name =  device.DeviceType.GetName(nameIndex);
-			nameIndex++;
-		} while (devices.ContainsKey(name));
-
-		devices.Add(name, device);
+		}
 	}
-
-
 
 	public void UpdateDirectoryInfo(DirEntry.UpdateHandle dir)
 	{
-		foreach (var d in devices.Keys)
-			dir.AddFile(d);
+		foreach (var device in os.Devices)			
+		{
+			var name = device.name;
+			var file = new MyFileEntry(name, mountPoint, true);
+			file.guid = device.guid;
+			dir.Files.Add(file);
+		}
 	}
 
 
 	public Stream Open(FileEntry file, FileMode mode, FileAccess access, FileShare share)
 	{
 		var p = mountPoint.GetRelativePathTo(file);
-		if (!devices.ContainsKey(p)) throw new FileNotFoundException("device " + p + " not found");
+		var myFile = file as MyFileEntry;
+		if (myFile == null) throw new FileNotFoundException("device '" + file.FullName + "' was not created by this file system");
+		var device = os.Devices.FirstOrDefault(d => d.guid == myFile.guid);
+		if (device == null) throw new FileNotFoundException("device '" + file.FullName + "' not found");
 
-		if (access == FileAccess.Read) return devices[p].OpenRead();
-		if (access == FileAccess.Write) return devices[p].OpenWrite();
+		if (access == FileAccess.Read) return device.OpenRead();
+		if (access == FileAccess.Write) return device.OpenWrite();
 
 		throw new NotImplementedException(FileAccess.ReadWrite + " is not implemented");
 	}

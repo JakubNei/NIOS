@@ -41,10 +41,10 @@ public partial class OperatingSystem : IBootSectorProgram
 
 		MachineName = "vm0387";
 
-		NewThread(Main).Start();
+		NewThread(null, Main).Start();
 	}
 
-	public Thread NewThread(ThreadStart start)
+	public Thread NewThread(Session session, ThreadStart start)
 	{
 		return Machine.CreateThread(start);
 	}
@@ -73,56 +73,100 @@ public partial class OperatingSystem : IBootSectorProgram
 		public Session Session { get; set; }
 		public void Start(string filePath, params string[] args)
 		{
-			var data = Session.Api.File.ReadAllText(filePath);
+			var file = Session.Api.File.GetFileEntry(filePath);
 
-			Session.argsUsedToStart = args;
-			Session.cmdLineUsedToStart = filePath + " " + args.Join(" ");
-			Session.currentDirectory = Session.Api.Path.GetDirectoryName(filePath);
-
-			if (data.StartsWith(InitializeFileSystem.MakeType))
+			if (file.Exists)
 			{
-				var typeName = data.Substring(InitializeFileSystem.MakeType.Length);
-				var type = Assembly.GetExecutingAssembly().GetType(typeName);
-				if (type == null) throw new Error("unable to find type " + data);
-				var instance = Activator.CreateInstance(type);
-				if (instance == null) throw new Error("failed to create instance of " + type);
-				var program = (ProgramBase)instance;
+				var data = file.ReadAllText();
 
-				program.Session = Session;
-				program.Main(args);
+				Session.argsUsedToStart = args;
+				Session.cmdLineUsedToStart = filePath + " " + args.Join(" ");
+
+				if (data.StartsWith(InitializeFileSystem.MakeType))
+				{
+					var typeName = data.Substring(InitializeFileSystem.MakeType.Length);
+					var type = Assembly.GetExecutingAssembly().GetType(typeName);
+					if (type == null) throw new Error("unable to find type " + data);
+					var instance = Activator.CreateInstance(type);
+					if (instance == null) throw new Error("failed to create instance of " + type);
+					var program = (ProgramBase)instance;
+
+					program.Session = Session;
+					program.Main(args);
+				}
+				else
+				{
+					throw new Error("'" + filePath + "', has unexpected data, can not start");
+				}
 			}
 			else
 			{
-				throw new Error(filePath + ", has unexpected data, can not start");
+				throw new Error("'" + filePath + "', does not exist");
 			}
 		}
 	}
 
-	public Process NewProcess()
+	public Process NewProcess(Session session)
 	{
 		var p = new Process();
-		p.Session = this.session.Clone();
+		p.Session = session.Clone();
+		p.Session.Init();
 		return p;
 	}
 
 
+	public IEnumerable<Device> Devices { get { return devices.Where(d => d.enabled); } }
+	List<Device> devices = new List<Device>();
+
+	public class Device
+	{
+		public Guid guid;
+		public bool enabled;
+		public string name;
+		public Func<Stream> OpenRead;
+		public Func<Stream> OpenWrite;
+	}
+
+	void AddDevice(IDevice id)
+	{
+		var device = new Device();
+		device.enabled = true;
+		device.OpenRead = id.OpenRead;
+		device.OpenWrite = id.OpenWrite;
+		device.guid = id.Guid;
+		int nameIndex = 0;
+		do
+		{
+			device.name = id.DeviceType.GetName(nameIndex);
+			nameIndex++;
+		} while (devices.Any(d => d.name == device.name));
+
+		devices.Add(device);
+	}
+	void RemoveDevice(IDevice id)
+	{
+		devices.RemoveAll(d => d.guid == id.Guid);
+	}
+
 	void SetupSystem()
 	{
+		Machine.Devices.ForEach(AddDevice);
+		Machine.OnDeviceConnected += AddDevice;
+		Machine.OnDeviceDisconnected += RemoveDevice;
+
 		rootDirectory = DirEntry.MakeRoot();
 
 		var dev = rootDirectory.CreateSubdirectory("dev");
-		var devFs = new DevFs(dev);
+		var devFs = new DevFs(dev, this);
 		dev.fileSystem = devFs;
 		dev.isMountPoint = true;
 		dev.Refresh();
 
 		var sys = rootDirectory.CreateSubdirectory("sys");
-		var sysFs = new SysFs(dev);
+		var sysFs = new SysFs(dev, this);
 		sys.fileSystem = sysFs;
 		sys.isMountPoint = true;
 		sys.Refresh();
-
-		foreach (var d in Machine.Devices) devFs.AddDevice(d);
 
 		Mount("/dev/" + DeviceType.SCSIDevice.GetName(), "/", "csv");
 
@@ -183,7 +227,7 @@ public partial class OperatingSystem : IBootSectorProgram
 		switch (fileSystem)
 		{
 			case "csv":
-				toDir.fileSystem = new CsvFileSystem(toDir, deviceFile);
+				toDir.fileSystem = new CsvFileSystem(toDir, deviceFile, this);
 				break;
 		}
 		toDir.isMountPoint = true;
@@ -198,7 +242,7 @@ public partial class OperatingSystem : IBootSectorProgram
 
 			var userSession = AuthenticateNewSession();
 
-			var shell = NewProcess();
+			var shell = NewProcess(userSession);
 			shell.Session = userSession;
 			shell.Start("/bin/sh");
 		}
@@ -269,11 +313,7 @@ public partial class OperatingSystem : IBootSectorProgram
 
 		var api = session.Api;
 
-		var p = api.Environment.GetFolderPath(SpecialFolder.Personal);
-		if (!api.Directory.Exists(p)) api.Directory.CreateDirectory(p);
-		api.Environment.CurrentDirectory = p;
-
-		api.Console.WriteLine("logged in as user " + api.Environment.UserName);
+		api.Console.WriteLine("logged in as user '" + api.Environment.UserName + "'");
 		api.Console.WriteLine();
 
 		return session;

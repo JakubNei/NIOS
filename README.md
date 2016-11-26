@@ -15,7 +15,10 @@ to do: users, groups, multi user environment, process management, network/socket
 
 # Examples
 
-![](http://image.prntscr.com/image/9858f3d9ca0e4ba58089617893e6882e.png)
+
+[![](http://image.prntscr.com/image/df4619937a6f4999bb6ea95796778755.png)](http://image.prntscr.com/image/df4619937a6f4999bb6ea95796778755.png)
+
+[![](http://image.prntscr.com/image/9858f3d9ca0e4ba58089617893e6882e.png)](http://image.prntscr.com/image/9858f3d9ca0e4ba58089617893e6882e.png)
 
 Video:
 [![](https://img.youtube.com/vi/j3kOllcE9yM/0.jpg)](https://www.youtube.com/watch?v=j3kOllcE9yM)

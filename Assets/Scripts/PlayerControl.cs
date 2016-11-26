@@ -46,7 +46,7 @@ public class PlayerControl : MonoBehaviour
 		return other;
 	}
 
-	void Update()
+	void LateUpdate()
 	{
 		if (inputStack.Count > 1 && Input.GetKeyDown(KeyCode.Escape))
 		{
@@ -109,6 +109,7 @@ public class PlayerControl : MonoBehaviour
 		else
 		{
 			fpc.enabled = false;
+			cursor.SetActive(false);
 		}
 	}
 

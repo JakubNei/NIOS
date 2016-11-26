@@ -22,9 +22,14 @@ public class TextDisplayDevice : NeitriBehavior, IDevice
 	StdLib.Ecma48.Client client;
 	ulong deviceLastDataVersion;
 
+	Guid guid;
+	public Guid Guid { get { return guid; } }
+
 	protected override void Start()
 	{
 		base.Start();
+
+		guid = Utils.IntToGuid(GetInstanceID());
 
 		if (textComponent == null) textComponent = GetComponentInChildren<Text>(); ;
 
@@ -67,12 +72,15 @@ public class TextDisplayDevice : NeitriBehavior, IDevice
 			if (lastUpdate.IsOver(seconds: 1).InPastComparedTo(World.UtcNow))
 			{
 				lastUpdate = World.UtcNow;
-				var backup = lastSignalReceived;
+				var backupLastSingalReceived = lastSignalReceived;
 
 				client.EraseDisplay();
 				client.WriteLine();
 				client.WriteLine();
-				client.WriteLine("last signal received " + World.UtcNow.Subtract(backup).TotalSeconds + " seconds ago");
+				if(backupLastSingalReceived == DateTime.MinValue)
+					client.WriteLine("no signal received");
+				else
+					client.WriteLine("last signal received " + World.UtcNow.Subtract(backupLastSingalReceived).TotalSeconds.Round().ToInt() + " seconds ago");
 				client.WriteLine("debug info:");
 				client.WriteLine("	current time: " + World.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
 				client.WriteLine("	columns: " + device.ColumnsCount);
@@ -80,7 +88,7 @@ public class TextDisplayDevice : NeitriBehavior, IDevice
 				client.WriteLine();
 				client.WriteLine();
 
-				lastSignalReceived = backup;
+				lastSignalReceived = backupLastSingalReceived;
 			}
 		}
 

@@ -57,9 +57,10 @@ public class DirEntry : FileSystemEntry // DirectoryInfo
 		return new DirEntry("root", null);
 	}
 
-	public DirEntry(string name, DirEntry parent) : base(name, parent)
+	public DirEntry(string name, DirEntry parent, bool exists = false) : base(name, parent)
 	{
 		this.parent = parent;
+		this.exists = exists;
 	}
 
 
