@@ -8,10 +8,11 @@ Fake simulated Linux like operating system with simple Bourne like shell in C#, 
 - Architecture is based on Linux.
 - Programs can use api that is the same as System.Console, System.Environment, System.IO.Path, System.IO.Directory, System.IO.File, System.IO.DirectoryInfo, System.IO.FileInfo
 - You can add your system files that will represent ingame storage devices.
-- Those storage devices can then be mounted with a file system.
-- Has simple CSV-like file system.
+- Those storage devices can then be mounted with a fake file system.
 - Has simple bourne like shell capable of pipelining and output redirection.
-- Has simple ecma 48 console simulation.
+- Has simple ecma 48 like console simulation.
+
+In the future one could make something similar to this: https://github.com/s-macke/jor1k
 
 # Examples
 
