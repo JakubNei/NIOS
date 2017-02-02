@@ -1,6 +1,6 @@
 # NIOS
 Fake simulated Linux like operating system with simple Bourne like shell in C#, Unity 3D.
-Maybe one day this "project" will be as cool as https://github.com/s-macke/jor1k
+Maybe one day this "project" will evolve into something as cool as https://github.com/s-macke/jor1k
 
 # What is this
 - I always wanted to make fake simulated Linux like system in C#.
