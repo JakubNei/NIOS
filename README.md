@@ -1,9 +1,8 @@
 # NIOS
-Fake simulated Linux like operating system with simple Bourne like shell in C# in Unity.
+Fake simulated simple Linux like operating system with simple Bourne like shell in C# in Unity.
 Maybe one day this "project" will evolve into something as cool as https://github.com/s-macke/jor1k
 
-# What is this
-- I always wanted to make fake simulated Linux like system in C#. One that you can use to make ingame computers. Such system implicitly brings emergent gameplay.
+- Real world inspired computers inside game world implicitly brings emergent gameplay.
 - Architecture tries to resemble Linux.
 - Programs can use API that is the same as System.Console, System.Environment, System.IO.Path, System.IO.Directory, System.IO.File, System.IO.DirectoryInfo, System.IO.FileInfo
 - You can add your real system files that will represent ingame storage devices.
@@ -17,5 +16,5 @@ Maybe one day this "project" will evolve into something as cool as https://githu
 
 [![](http://image.prntscr.com/image/9858f3d9ca0e4ba58089617893e6882e.png)](http://image.prntscr.com/image/9858f3d9ca0e4ba58089617893e6882e.png)
 
-Video:
+### Video
 [![](https://img.youtube.com/vi/j3kOllcE9yM/0.jpg)](https://www.youtube.com/watch?v=j3kOllcE9yM)
